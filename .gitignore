@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+
+# Local configuration and generated data
+.env
+backend/.chroma_db/
+backend/data/repositories/
+
+# Local model and tooling caches
+.cache/
+*.log
