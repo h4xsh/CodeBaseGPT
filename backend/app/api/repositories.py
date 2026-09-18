@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.models.schemas import RepositoryCreateRequest, RepositoryResponse
 from app.services.github import parse_github_url
 from app.services.ingestion import ingest_repository
+from app.services.vector_store import repository_is_indexed
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
 REPOSITORY_STORE = {}
@@ -17,6 +18,11 @@ def _repository_id_for_url(github_url: str) -> str:
     return f"repo_{owner}_{repo_name}"
 
 
+def _repository_path(storage_root: Path, github_url: str) -> Path:
+    owner, repo_name = parse_github_url(github_url)
+    return storage_root / f"{owner}__{repo_name}"
+
+
 @router.post("", response_model=RepositoryResponse, status_code=status.HTTP_201_CREATED)
 def create_repository(payload: RepositoryCreateRequest):
     github_url = str(payload.github_url)
@@ -25,6 +31,17 @@ def create_repository(payload: RepositoryCreateRequest):
         repo_id = _repository_id_for_url(github_url)
         storage_root = Path(get_settings()["repo_storage_path"])
         storage_root.mkdir(parents=True, exist_ok=True)
+        existing_path = _repository_path(storage_root, github_url)
+        if existing_path.exists() and repository_is_indexed(repo_id):
+            repository = RepositoryResponse(
+                repository_id=repo_id,
+                status="ready",
+                message="Repository was already indexed and is ready to use.",
+                github_url=github_url,
+                local_path=str(existing_path.resolve()),
+            )
+            REPOSITORY_STORE[repo_id] = repository.model_dump(mode="python")
+            return repository
         result = ingest_repository(github_url, storage_root=storage_root)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

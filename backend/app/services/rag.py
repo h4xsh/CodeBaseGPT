@@ -1,8 +1,9 @@
 import logging
+from collections.abc import Iterator
 
 from langchain_core.prompts import ChatPromptTemplate
 
-from app.services.llm import generate_answer
+from app.services.llm import generate_answer, stream_answer
 from app.services.vector_store import search_chunks
 
 logger = logging.getLogger(__name__)
@@ -78,10 +79,33 @@ def answer_question(
             "question": question.strip(),
         }
     ).to_string()
-    answer = generate_answer(prompt)
+    generated = generate_answer(prompt)
 
     logger.info("Answered question for repository %s using %d chunks", repository_id, len(chunks))
     return {
-        "answer": answer,
+        "answer": generated["answer"],
         "sources": _sources(chunks),
+        "model": generated["model"],
     }
+
+
+def stream_question(
+    repository_id: str,
+    question: str,
+    messages: list[dict[str, str]] | None = None,
+) -> tuple[Iterator[dict[str, str]], list[dict]]:
+    """Prepare a grounded prompt and return its streaming answer and sources."""
+    if not repository_id:
+        raise ValueError("repository_id is required.")
+    if not question.strip():
+        raise ValueError("question must be a non-empty string.")
+
+    chunks = search_chunks(repository_id, question, top_k=TOP_K)
+    prompt = PROMPT.invoke(
+        {
+            "context": _context(chunks),
+            "conversation": _conversation(messages or []),
+            "question": question.strip(),
+        }
+    ).to_string()
+    return stream_answer(prompt), _sources(chunks)

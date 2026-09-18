@@ -15,12 +15,11 @@ export default function ChatWindow({ repositoryId, messages, onSend, loading, er
     <section className="panel chat-panel">
       <div className="panel-heading">
         <span>Ask about the code</span>
-        {repositoryId && <span className="status-dot">Indexed</span>}
+        {repositoryId && <span className="status-indicator"><span className="status-dot" /> Indexed</span>}
       </div>
       <div className="messages">
         {messages.length === 0 ? (
           <div className="empty-chat">
-            <div className="empty-icon">⌘</div>
             <h2>Explore your repository</h2>
             <p>Ask how a feature works, where code lives, or how files connect.</p>
           </div>

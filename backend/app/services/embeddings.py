@@ -17,9 +17,9 @@ def get_embedding_model() -> HuggingFaceEmbeddings:
     logger.info("Loading embedding model: %s", model_name)
     return HuggingFaceEmbeddings(
         model_name=model_name,
+        show_progress=False,
         encode_kwargs={
             "normalize_embeddings": True,
-            "show_progress_bar": False,
         },
     )
 

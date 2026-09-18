@@ -10,8 +10,10 @@ frontend/dist/
 
 # Local configuration and generated data
 .env
+data/.chroma_db/
+data/repositories/
 backend/.chroma_db/
-backend/data/repositories/
+backend/data/
 
 # Local model and tooling caches
 .cache/

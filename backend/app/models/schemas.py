@@ -47,6 +47,7 @@ class SourceItem(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     sources: List[SourceItem] = Field(default_factory=list)
+    model: str
 
 
 class ErrorResponse(BaseModel):

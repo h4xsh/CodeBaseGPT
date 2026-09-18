@@ -31,6 +31,23 @@ def test_embed_documents_returns_one_vector_per_document(fake_model):
     assert fake_model.calls[0] == ("documents", ["def login():", "class User:"])
 
 
+def test_embedding_model_disables_progress_without_duplicate_encode_argument(monkeypatch):
+    captured = {}
+
+    class FakeEmbeddings:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    embeddings.get_embedding_model.cache_clear()
+    monkeypatch.setattr(embeddings, "HuggingFaceEmbeddings", FakeEmbeddings)
+
+    embeddings.get_embedding_model()
+
+    assert captured["show_progress"] is False
+    assert captured["encode_kwargs"] == {"normalize_embeddings": True}
+    embeddings.get_embedding_model.cache_clear()
+
+
 def test_embed_query_uses_search_prefix(fake_model):
     result = embeddings.embed_query("where is login defined?")
 

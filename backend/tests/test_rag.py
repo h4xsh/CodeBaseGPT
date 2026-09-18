@@ -18,7 +18,10 @@ def test_answer_question_retrieves_context_and_returns_sources(monkeypatch):
 
     def fake_generate(prompt):
         captured["prompt"] = prompt
-        return "Authentication is implemented in auth.py."
+        return {
+            "answer": "Authentication is implemented in auth.py.",
+            "model": "openai/gpt-oss-120b",
+        }
 
     monkeypatch.setattr(rag, "search_chunks", fake_search)
     monkeypatch.setattr(rag, "generate_answer", fake_generate)
@@ -34,6 +37,7 @@ def test_answer_question_retrieves_context_and_returns_sources(monkeypatch):
     assert "Where is login?" in captured["prompt"]
     assert result == {
         "answer": "Authentication is implemented in auth.py.",
+        "model": "openai/gpt-oss-120b",
         "sources": [
             {
                 "file_path": "auth.py",
@@ -47,7 +51,11 @@ def test_answer_question_retrieves_context_and_returns_sources(monkeypatch):
 
 def test_answer_question_handles_missing_context(monkeypatch):
     monkeypatch.setattr(rag, "search_chunks", lambda *args, **kwargs: [])
-    monkeypatch.setattr(rag, "generate_answer", lambda prompt: "I do not have enough information.")
+    monkeypatch.setattr(
+        rag,
+        "generate_answer",
+        lambda prompt: {"answer": "I do not have enough information.", "model": "qwen3:8b"},
+    )
 
     result = rag.answer_question("repo_demo", "What is missing?")
 

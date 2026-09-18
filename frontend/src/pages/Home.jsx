@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FileTree from "../components/FileTree";
 import ChatWindow from "../components/ChatWindow";
 import RepositoryInput from "../components/RepositoryInput";
-import { askQuestion, createRepository } from "../services/api";
+import { createRepository, streamQuestion } from "../services/api";
 
 export default function Home() {
   const [repository, setRepository] = useState(null);
@@ -11,6 +11,12 @@ export default function Home() {
   const [chatLoading, setChatLoading] = useState(false);
   const [repositoryError, setRepositoryError] = useState("");
   const [chatError, setChatError] = useState("");
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("codebasegpt-theme") === "dark");
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? "dark" : "light";
+    localStorage.setItem("codebasegpt-theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
 
   const sources = useMemo(
     () => conversation.flatMap((message) => message.sources || []),
@@ -36,13 +42,34 @@ export default function Home() {
     setChatError("");
     setConversation((current) => [...current, { role: "user", content: question }]);
     try {
-      const result = await askQuestion(repository.repository_id, question, history);
       setConversation((current) => [
         ...current,
-        { role: "assistant", content: result.answer, sources: result.sources },
+        { role: "assistant", content: "", sources: [], model: "" },
       ]);
+      const result = await streamQuestion(
+        repository.repository_id,
+        question,
+        history,
+        (token) =>
+          setConversation((current) => {
+            const next = [...current];
+            const assistant = next[next.length - 1];
+            next[next.length - 1] = { ...assistant, content: assistant.content + token };
+            return next;
+          }),
+      );
+      setConversation((current) => {
+        const next = [...current];
+        next[next.length - 1] = {
+          ...next[next.length - 1],
+          sources: result.sources,
+          model: result.model,
+        };
+        return next;
+      });
     } catch (error) {
       setChatError(error.message);
+      setConversation((current) => current.slice(0, -1));
     } finally {
       setChatLoading(false);
     }
@@ -55,7 +82,17 @@ export default function Home() {
           <div className="eyebrow">LOCAL CODE INTELLIGENCE</div>
           <h1>Codebase<span>GPT</span></h1>
         </div>
-        <div className="header-status"><span className="status-dot" /> Ollama connected locally</div>
+        <div className="header-actions">
+          <div className="header-status"><span className="status-dot" /> Ollama connected locally</div>
+          <button
+            className="theme-toggle"
+            type="button"
+            onClick={() => setDarkMode((current) => !current)}
+            aria-label={`Switch to ${darkMode ? "light" : "dark"} mode`}
+          >
+            {darkMode ? "Light mode" : "Dark mode"}
+          </button>
+        </div>
       </header>
 
       <section className="hero">
@@ -71,7 +108,7 @@ export default function Home() {
         />
         {repository && (
           <div className="repository-status">
-            <span className="status-dot" />
+            <span className="status-indicator"><span className="status-dot" /> Indexed</span>
             <strong>{repository.repository_id}</strong>
             <span>{repository.message}</span>
           </div>

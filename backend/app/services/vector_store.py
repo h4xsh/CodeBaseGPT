@@ -56,6 +56,19 @@ def add_chunks(repository_id: str, chunks: list[dict[str, Any]]) -> int:
     return len(documents)
 
 
+def repository_is_indexed(repository_id: str) -> bool:
+    """Return whether Chroma already contains at least one chunk for a repository."""
+    if not repository_id:
+        raise ValueError("repository_id is required.")
+
+    result = get_vector_store().get(
+        where={"repository_id": repository_id},
+        limit=1,
+        include=[],
+    )
+    return bool(result.get("ids"))
+
+
 def search_chunks(
     repository_id: str,
     query: str,

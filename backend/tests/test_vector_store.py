@@ -18,6 +18,9 @@ class FakeStore:
         self.added = []
         self.deleted = []
 
+    def get(self, **kwargs):
+        return {"ids": ["repo_demo:main.py:0"]}
+
     def add_documents(self, documents, ids):
         self.added.append((documents, ids))
 
@@ -67,6 +70,10 @@ def test_search_chunks_returns_source_metadata(fake_store):
             "score": 0.12,
         }
     ]
+
+
+def test_repository_is_indexed_checks_for_existing_ids(fake_store):
+    assert vector_store.repository_is_indexed("repo_demo") is True
 
 
 def test_delete_repository_filters_by_repository(fake_store):
