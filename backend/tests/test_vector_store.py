@@ -16,7 +16,7 @@ class FakeCollection:
 class FakeStore:
     def __init__(self):
         self.added = []
-        self._collection = FakeCollection()
+        self.deleted = []
 
     def add_documents(self, documents, ids):
         self.added.append((documents, ids))
@@ -31,6 +31,9 @@ class FakeStore:
                 0.12,
             )
         ]
+
+    def delete(self, **kwargs):
+        self.deleted.append(kwargs)
 
 
 @pytest.fixture
@@ -69,7 +72,7 @@ def test_search_chunks_returns_source_metadata(fake_store):
 def test_delete_repository_filters_by_repository(fake_store):
     vector_store.delete_repository("repo_demo")
 
-    assert fake_store._collection.deleted == [{"where": {"repository_id": "repo_demo"}}]
+    assert fake_store.deleted == [{"where": {"repository_id": "repo_demo"}}]
 
 
 @pytest.mark.parametrize(

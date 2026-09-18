@@ -1,18 +1,22 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import ChatRequest, ChatResponse
+from app.services.rag import answer_question
 
 router = APIRouter(tags=["chat"])
 
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    return ChatResponse(
-        answer="This is a placeholder response from the Phase 1 FastAPI foundation.",
-        sources=[
-            {
-                "file_path": "README.md",
-                "snippet": "Repository context will be inserted here during later phases.",
-            }
-        ],
-    )
+    try:
+        return ChatResponse(
+            **answer_question(
+                repository_id=request.repository_id,
+                question=request.question,
+                messages=[message.model_dump() for message in request.messages],
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc

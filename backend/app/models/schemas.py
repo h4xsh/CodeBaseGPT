@@ -40,6 +40,8 @@ class ChatRequest(BaseModel):
 class SourceItem(BaseModel):
     file_path: str
     snippet: str
+    chunk_index: int
+    score: float
 
 
 class ChatResponse(BaseModel):

@@ -88,5 +88,5 @@ def delete_repository(repository_id: str) -> None:
     if not repository_id:
         raise ValueError("repository_id is required.")
 
-    get_vector_store()._collection.delete(where={"repository_id": repository_id})
+    get_vector_store().delete(where={"repository_id": repository_id})
     logger.info("Deleted vector data for repository %s", repository_id)
