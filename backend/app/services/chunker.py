@@ -1,4 +1,5 @@
 import logging
+from functools import lru_cache
 from typing import Iterable
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -7,6 +8,18 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CHUNK_SIZE = 2_000
 DEFAULT_CHUNK_OVERLAP = 200
+
+
+@lru_cache(maxsize=16)
+def get_text_splitter(
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> RecursiveCharacterTextSplitter:
+    return RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        separators=["\n\n", "\n", " ", ""],
+    )
 
 
 def chunk_text(
@@ -24,12 +37,7 @@ def chunk_text(
     if not text:
         return []
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        separators=["\n\n", "\n", " ", ""],
-    )
-    return splitter.split_text(text)
+    return get_text_splitter(chunk_size, chunk_overlap).split_text(text)
 
 
 def chunk_file(
@@ -43,17 +51,18 @@ def chunk_file(
     if not file_path or content is None:
         raise ValueError("Each file must contain non-empty 'path' and 'content' fields.")
 
-    chunks = [
+    documents = get_text_splitter(chunk_size, chunk_overlap).create_documents(
+        [content],
+        metadatas=[{"file_path": file_path}],
+    )
+    return [
         {
-            "content": content_chunk,
-            "file_path": file_path,
+            "content": document.page_content,
+            "file_path": document.metadata["file_path"],
             "chunk_index": index,
         }
-        for index, content_chunk in enumerate(
-            chunk_text(content, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-        )
+        for index, document in enumerate(documents)
     ]
-    return chunks
 
 
 def chunk_files(
@@ -63,15 +72,11 @@ def chunk_files(
 ) -> list[dict[str, str | int]]:
     """Chunk all loaded repository files in their supplied order."""
     file_list = list(files)
-    chunks = []
-    for file in file_list:
-        chunks.extend(
-            chunk_file(
-                file,
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-            )
-        )
+    chunks = [
+        chunk
+        for file in file_list
+        for chunk in chunk_file(file, chunk_size, chunk_overlap)
+    ]
 
     logger.info("Created %d chunks from %d files", len(chunks), len(file_list))
     return chunks

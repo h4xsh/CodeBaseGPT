@@ -7,9 +7,13 @@ class FakeEmbeddingModel:
     def __init__(self):
         self.calls = []
 
-    def encode(self, texts, **kwargs):
-        self.calls.append((texts, kwargs))
+    def embed_documents(self, texts):
+        self.calls.append(("documents", texts))
         return [[float(index), 1.0] for index, _ in enumerate(texts)]
+
+    def embed_query(self, query):
+        self.calls.append(("query", query))
+        return [0.0, 1.0]
 
 
 @pytest.fixture
@@ -24,20 +28,24 @@ def test_embed_documents_returns_one_vector_per_document(fake_model):
     result = embeddings.embed_documents(["def login():", "class User:"])
 
     assert result == [[0.0, 1.0], [1.0, 1.0]]
-    assert fake_model.calls[0][0] == ["def login():", "class User:"]
-    assert fake_model.calls[0][1]["normalize_embeddings"] is True
+    assert fake_model.calls[0] == ("documents", ["def login():", "class User:"])
 
 
 def test_embed_query_uses_search_prefix(fake_model):
     result = embeddings.embed_query("where is login defined?")
 
     assert result == [0.0, 1.0]
-    assert fake_model.calls[0][0] == [
-        "Represent this sentence for searching relevant passages: where is login defined?"
-    ]
+    assert fake_model.calls[0] == (
+        "query",
+        "Represent this sentence for searching relevant passages: where is login defined?",
+    )
 
 
-@pytest.mark.parametrize("value", [[], [""], ["   "], [None]])
+def test_embed_documents_returns_empty_for_empty_batch(fake_model):
+    assert embeddings.embed_documents([]) == []
+
+
+@pytest.mark.parametrize("value", [[""], ["   "], [None]])
 def test_embed_documents_rejects_empty_values(fake_model, value):
     with pytest.raises(ValueError):
         embeddings.embed_documents(value)

@@ -1,8 +1,9 @@
 import logging
 from functools import lru_cache
-from typing import Any, Sequence
+from collections.abc import Sequence
 
 from app.core.config import get_settings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 logger = logging.getLogger(__name__)
 
@@ -10,28 +11,17 @@ QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
 
 @lru_cache(maxsize=1)
-def get_embedding_model():
-    """Load the local embedding model once, on first use."""
-    try:
-        from sentence_transformers import SentenceTransformer
-    except ImportError as exc:
-        raise RuntimeError(
-            "SentenceTransformers is not installed. Install backend requirements first."
-        ) from exc
-
+def get_embedding_model() -> HuggingFaceEmbeddings:
+    """Create the LangChain embedding model once, on first use."""
     model_name = get_settings()["embedding_model"]
     logger.info("Loading embedding model: %s", model_name)
-    return SentenceTransformer(model_name)
-
-
-def _encode(model: Any, texts: Sequence[str]) -> list[list[float]]:
-    vectors = model.encode(
-        list(texts),
-        normalize_embeddings=True,
-        convert_to_numpy=True,
-        show_progress_bar=False,
+    return HuggingFaceEmbeddings(
+        model_name=model_name,
+        encode_kwargs={
+            "normalize_embeddings": True,
+            "show_progress_bar": False,
+        },
     )
-    return vectors.tolist()
 
 
 def embed_documents(documents: Sequence[str]) -> list[list[float]]:
@@ -41,7 +31,7 @@ def embed_documents(documents: Sequence[str]) -> list[list[float]]:
     if any(not isinstance(document, str) or not document.strip() for document in documents):
         raise ValueError("Documents must be non-empty strings.")
 
-    vectors = _encode(get_embedding_model(), documents)
+    vectors = get_embedding_model().embed_documents(list(documents))
     logger.info("Generated %d document embeddings", len(vectors))
     return vectors
 
@@ -51,6 +41,6 @@ def embed_query(query: str) -> list[float]:
     if not isinstance(query, str) or not query.strip():
         raise ValueError("Query must be a non-empty string.")
 
-    vectors = _encode(get_embedding_model(), [QUERY_PREFIX + query.strip()])
+    vectors = get_embedding_model().embed_query(QUERY_PREFIX + query.strip())
     logger.info("Generated query embedding")
-    return vectors[0]
+    return vectors
