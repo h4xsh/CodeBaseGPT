@@ -5,6 +5,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+node_modules/
+frontend/dist/
 
 # Local configuration and generated data
 .env
